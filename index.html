@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GPT Image 2.0 提示词案例库</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+        <!-- Supabase SDK -->
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+        <script>
+            // 获取用户 IP 地址（用于速率限制）
+            let userIP = null;
+            let ipFetchPromise = null;
+            
+            async function fetchUserIP() {
+                try {
+                    const response = await fetch('https://api.ipify.org?format=json', {
+                        timeout: 3000
+                    });
+                    const data = await response.json();
+                    userIP = data.ip;
+                    console.log('用户 IP 已获取:', userIP);
+                } catch (err) {
+                    console.warn('无法获取 IP 地址，将使用默认值');
+                    userIP = 'unknown-' + Math.random().toString(36).substr(2, 9);
+                }
+            }
+            // 页面加载时立即获取 IP，并保存 Promise
+            ipFetchPromise = fetchUserIP();
+        </script>
+        <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            max-width: 1920px;
+            margin: 0 auto;
+            background: #f5f7fa;
+        }
+
+        /* 左侧导航栏 */
+        .sidebar {
+            width: 280px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .categories {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .category-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #4a5568;
+            font-size: 14px;
+        }
+
+        .category-item:hover {
+            background: #edf2f7;
+            color: #2d3748;
+        }
+
+        .category-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .category-icon {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+
+        .category-count {
+            margin-left: auto;
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .category-item.active .category-count {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        /* 右侧主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 顶部搜索栏 */
+        .search-bar {
+            background: white;
+            padding: 20px 32px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .search-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 20px 12px 48px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s;
+            background: #f7fafc;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: #a0aec0;
+        }
+
+        .stats {
+            color: #718096;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        /* 图片网格 */
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .image-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .image-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+
+        .image-wrapper {
+            position: relative;
+            width: 100%;
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #f7fafc;
+            padding: 10px;
+        }
+
+        .image-wrapper img {
+            max-width: 100%;
+            max-height: 250px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            transition: transform 0.3s;
+        }
+
+        .image-card:hover .image-wrapper img {
+            transform: scale(1.05);
+        }
+
+        .image-info {
+            padding: 16px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .image-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            font-size: 18px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .modal-close {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: #f7fafc;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #e2e8f0;
+        }
+
+        .modal-body {
+            padding: 32px;
+        }
+
+        .modal-layout {
+            display: flex;
+            gap: 32px;
+            align-items: flex-start;
+        }
+
+        .modal-image-wrapper {
+            flex: 1;
+            max-width: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .modal-image {
+            max-width: 100%;
+            max-height: 70vh;
+            width: auto;
+            height: auto;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+
+        .modal-prompt-area {
+            flex: 1;
+            max-width: 50%;
+        }
+
+        .prompt-section {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .prompt-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .prompt-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #2d3748;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #a0aec0;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 18px;
+        }
+
+        /* 错误状态 */
+        .error-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #e53e3e;
+        }
+
+        .error-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .error-state-text {
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+
+        .error-state-details {
+            font-size: 14px;
+            color: #718096;
+            max-width: 600px;
+            margin: 0 auto;
+            word-break: break-all;
+        }
+
+        .retry-btn {
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 邀请码验证界面 */
+        .invitation-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .invitation-overlay.hidden {
+            display: none;
+        }
+
+        .invitation-card {
+            background: white;
+            border-radius: 20px;
+            padding: 48px;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .invitation-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .invitation-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .invitation-subtitle {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .invitation-input-wrapper {
+            margin-bottom: 20px;
+        }
+
+        .invitation-input {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            background: #f7fafc;
+        }
+
+        .invitation-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .invitation-input::placeholder {
+            letter-spacing: 0;
+            font-size: 14px;
+        }
+
+        .invitation-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .invitation-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .invitation-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .invitation-error {
+            color: #e53e3e;
+            font-size: 14px;
+            margin-top: 12px;
+            min-height: 20px;
+        }
+
+        .invitation-hint {
+            color: #a0aec0;
+            font-size: 12px;
+            margin-top: 16px;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: 200px;
+            }
+
+            .categories {
+                display: flex;
+                overflow-x: auto;
+                padding: 8px;
+            }
+
+            .category-item {
+                white-space: nowrap;
+            }
+
+            .image-grid {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 16px;
+            }
+
+            .search-bar {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .modal-layout {
+                flex-direction: column;
+            }
+
+            .modal-image-wrapper {
+                max-width: 100%;
+            }
+
+            .modal-prompt-area {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 邀请码验证界面 -->
+    <div class="invitation-overlay" id="invitationOverlay">
+        <div class="invitation-card">
+            <div class="invitation-icon">🔐</div>
+            <div class="invitation-title">访问验证</div>
+            <div class="invitation-subtitle">
+                请输入邀请码以访问<br>GPT Image 2.0 提示词案例库
+            </div>
+            <div class="invitation-input-wrapper">
+                <input 
+                    type="text" 
+                    class="invitation-input" 
+                    id="invitationInput"
+                    placeholder="请输入邀请码"
+                    autocomplete="off"
+                >
+            </div>
+            <button class="invitation-btn" id="invitationBtn">验证并访问</button>
+            <div class="invitation-error" id="invitationError"></div>
+            <div class="invitation-hint">邀请码区分大小写，请准确输入</div>
+            <div class="invitation-attempts" id="invitationAttempts" style="display: none; margin-top: 12px; color: #e53e3e; font-size: 13px; font-weight: 600;"></div>
+        </div>
+    </div>
+
+    <div class="container" id="mainContainer" style="display: none;">
+        <!-- 左侧导航栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>🎨 GPT Image 2.0 提示词案例库</h1>
+            </div>
+            <div class="categories" id="categories">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>加载中...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧主内容区 -->
+        <div class="main-content">
+            <!-- 顶部搜索栏 -->
+            <div class="search-bar">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input 
+                        type="text" 
+                        class="search-input" 
+                        id="searchInput"
+                        placeholder="搜索标题、提示词、类别..."
+                    >
+                </div>
+                <div class="stats" id="stats">
+                    加载中...
+                </div>
+            </div>
+
+            <!-- 内容区域 -->
+            <div class="content-area">
+                <div class="image-grid" id="imageGrid">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <span>加载中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框 -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">提示词详情</div>
+                <button class="modal-close" id="modalClose">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-layout">
+                    <div class="modal-image-wrapper">
+                        <img class="modal-image" id="modalImage" src="" alt="">
+                    </div>
+                    <div class="modal-prompt-area">
+                        <div class="prompt-section">
+                            <div class="prompt-label">📝 提示词</div>
+                            <button class="copy-btn" id="copyBtn">
+                                <span>📋</span>
+                                <span>复制</span>
+                            </button>
+                            <div class="prompt-text" id="modalPrompt"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 等待 DOM 和 Supabase SDK 加载完成
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('初始化应用...');
+            
+            // ========== 邀请码验证 Begin ==========
+            const invitationOverlay = document.getElementById('invitationOverlay');
+            const invitationInput = document.getElementById('invitationInput');
+            const invitationBtn = document.getElementById('invitationBtn');
+            const invitationError = document.getElementById('invitationError');
+            const mainContainer = document.getElementById('mainContainer');
+
+            // 检查 localStorage 中是否有已验证的邀请码
+            const verifiedCode = localStorage.getItem('verifiedInvitationCode');
+            
+            // Supabase 配置（提前定义，用于邀请码验证）
+            const SUPABASE_URL = 'https://vqubaohredxnfsbgstur.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdWJhb2hyZWR4bmZzYmdzdHVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczOTIwMTQsImV4cCI6MjA5Mjk2ODAxNH0.RZf20V3O6-e-EmHXTdKByMQOS5pKI8jS4MlDTg7fHt0';
+
+            // 验证邀请码函数（使用安全的 RPC 函数）
+            async function verifyInvitationCode(code) {
+                try {
+                    invitationBtn.disabled = true;
+                    invitationBtn.textContent = '验证中...';
+
+                    // 确保已获取 IP 地址（等待页面加载时的获取操作）
+                    if (!userIP && ipFetchPromise) {
+                        await ipFetchPromise;
+                    }
+                    
+                    // 如果还是没有 IP，再尝试获取一次
+                    if (!userIP) {
+                        await fetchUserIP();
+                    }
+
+                    console.log('准备验证邀请码，用户 IP:', userIP);
+
+                    // 初始化临时 Supabase 客户端（用于验证邀请码）
+                    const tempClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                    // 使用安全的 RPC 函数验证邀请码（传递 IP 用于速率限制）
+                    const { data, error } = await tempClient
+                        .rpc('verify_invitation_code', { 
+                            code_to_check: code,
+                            client_ip: userIP || 'unknown'
+                        });
+
+                    if (error) {
+                        console.error('RPC 调用失败:', error);
+                        throw new Error('验证服务暂时不可用，请稍后重试');
+                    }
+
+                    // 检查是否因速率限制被阻止
+                    if (data && data.rate_limited) {
+                        const resetMinutes = data.reset_in_minutes || 60;
+                        throw new Error(`尝试次数过多，请在 ${resetMinutes} 分钟后再试`);
+                    }
+
+                    // 检查验证结果
+                    if (!data || !data.valid) {
+                        throw new Error(data?.message || '邀请码无效或已失效');
+                    }
+
+                    // 验证成功
+                    console.log('邀请码验证成功，剩余尝试次数:', data.remaining);
+                    return { success: true, data };
+                } catch (err) {
+                    console.error('邀请码验证失败:', err);
+                    return { success: false, error: err.message };
+                } finally {
+                    invitationBtn.disabled = false;
+                    invitationBtn.textContent = '验证并访问';
+                }
+            }
+
+            // 处理邀请码验证
+            async function handleInvitationSubmit() {
+                const code = invitationInput.value.trim();
+                const attemptsDiv = document.getElementById('invitationAttempts');
+                
+                if (!code) {
+                    invitationError.textContent = '请输入邀请码';
+                    invitationInput.focus();
+                    return;
+                }
+
+                const result = await verifyInvitationCode(code);
+                
+                if (result.success) {
+                    // 验证成功 - 邀请码已绑定到当前设备/IP
+                    localStorage.setItem('verifiedInvitationCode', code);
+                    localStorage.setItem('verifiedAt', new Date().toISOString());
+                    invitationOverlay.classList.add('hidden');
+                    mainContainer.style.display = 'flex';
+                    
+                    console.log('邀请码验证成功，已绑定到当前设备');
+                    
+                    // 继续初始化应用
+                    initializeApp();
+                } else {
+                    // 验证失败 - 显示详细错误信息
+                    const errorMsg = result.error || '请先获得邀请码';
+                    invitationError.textContent = errorMsg;
+                    invitationInput.value = '';
+                    invitationInput.focus();
+                    
+                    // 显示剩余尝试次数（如果有）
+                    if (result.data && result.data.remaining !== undefined) {
+                        attemptsDiv.style.display = 'block';
+                        attemptsDiv.textContent = `剩余尝试次数：${result.data.remaining}/5`;
+                        attemptsDiv.style.color = result.data.remaining <= 2 ? '#e53e3e' : '#dd6b20';
+                    } else {
+                        attemptsDiv.style.display = 'none';
+                    }
+                    
+                    // 如果错误包含"尝试次数"，禁用输入框一段时间
+                    if (errorMsg.includes('尝试次数过多')) {
+                        invitationInput.disabled = true;
+                        invitationBtn.disabled = true;
+                        attemptsDiv.textContent = '请等待 60 秒后重新尝试';
+                        attemptsDiv.style.display = 'block';
+                        attemptsDiv.style.color = '#e53e3e';
+                        
+                        // 60 秒后重新启用
+                        setTimeout(() => {
+                            invitationInput.disabled = false;
+                            invitationBtn.disabled = false;
+                            attemptsDiv.style.display = 'none';
+                            invitationError.textContent = '您可以重新尝试了';
+                        }, 60000);
+                    }
+                }
+            }
+
+            // 绑定邀请码验证事件
+            invitationBtn.addEventListener('click', handleInvitationSubmit);
+            invitationInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleInvitationSubmit();
+                }
+            });
+
+            // 如果已经验证过，直接进入应用
+            if (verifiedCode) {
+                console.log('检测到已验证的邀请码，直接进入应用');
+                invitationOverlay.classList.add('hidden');
+                mainContainer.style.display = 'flex';
+                
+                // 延迟一点执行初始化，确保 DOM 完全就绪
+                setTimeout(() => {
+                    initializeApp();
+                }, 100);
+                return;
+            }
+
+            // 如果没有验证过，显示邀请码界面，暂停初始化
+            console.log('等待邀请码验证...');
+            
+            // ========== 初始化应用函数 ==========
+            async function initializeApp() {
+                console.log('开始初始化应用...');
+                
+                // 检查 Supabase SDK 是否加载
+                if (typeof supabase === 'undefined') {
+                    console.error('Supabase SDK 未加载');
+                    document.getElementById('categories').innerHTML = '<div class="error-state"><div class="error-state-icon">❌</div><div class="error-state-text">Supabase SDK 加载失败</div><div class="error-state-details">请检查网络连接并刷新页面</div></div>';
+                    document.getElementById('imageGrid').innerHTML = '<div class="error-state"><div class="error-state-icon">❌</div><div class="error-state-text">Supabase SDK 加载失败</div><div class="error-state-details">请检查网络连接并刷新页面</div></div>';
+                    return;
+                }
+                
+                // Supabase 配置（使用外部作用域的变量）
+                // SUPABASE_URL 和 SUPABASE_ANON_KEY 已经在外部定义
+
+                // 初始化 Supabase 客户端
+                let sbClient;
+                try {
+                    sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    console.log('Supabase 客户端初始化成功');
+                } catch (err) {
+                    console.error('Supabase 初始化失败:', err);
+                    return;
+                }
+
+                // 全局变量
+                let allData = [];
+                let filteredData = [];
+                let currentCategory = 'all';
+
+                // DOM 元素
+                const categoriesEl = document.getElementById('categories');
+                const imageGridEl = document.getElementById('imageGrid');
+                const searchInputEl = document.getElementById('searchInput');
+                const statsEl = document.getElementById('stats');
+                const modalEl = document.getElementById('modal');
+                const modalCloseEl = document.getElementById('modalClose');
+                const modalTitleEl = document.getElementById('modalTitle');
+                const modalImageEl = document.getElementById('modalImage');
+                const modalPromptEl = document.getElementById('modalPrompt');
+                const copyBtnEl = document.getElementById('copyBtn');
+
+                // 加载数据
+                async function loadData() {
+                    try {
+                        console.log('开始加载数据...');
+                        categoriesEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>加载中...</span></div>';
+                        imageGridEl.innerHTML = '<div class="loading"><div class="spinner"></div><span>加载中...</span></div>';
+
+                        const { data, error } = await sbClient
+                            .from('gpt_image_prompts')
+                            .select('*')
+                            .order('id', { ascending: true });
+
+                        console.log('Supabase 响应:', { data, error });
+
+                        if (error) {
+                            throw error;
+                        }
+
+                        if (!data || data.length === 0) {
+                            throw new Error('没有找到数据');
+                        }
+
+                        allData = data;
+                        filteredData = allData;
+
+                        console.log(`成功加载 ${data.length} 条数据`);
+
+                        renderCategories();
+                        renderImages();
+                        updateStats();
+                    } catch (err) {
+                        console.error('加载数据失败:', err);
+                        const errorMsg = err.message || '未知错误';
+                        const errorDetails = err.details || err.hint || '';
+                        
+                        categoriesEl.innerHTML = `
+                            <div class="error-state">
+                                <div class="error-state-icon">❌</div>
+                                <div class="error-state-text">加载失败</div>
+                                <div class="error-state-details">${errorMsg}<br>${errorDetails}</div>
+                                <button class="retry-btn" onclick="loadData()">重试</button>
+                            </div>
+                        `;
+                        
+                        imageGridEl.innerHTML = `
+                            <div class="error-state">
+                                <div class="error-state-icon">❌</div>
+                                <div class="error-state-text">加载失败</div>
+                                <div class="error-state-details">${errorMsg}<br>${errorDetails}</div>
+                                <button class="retry-btn" onclick="loadData()">重试</button>
+                            </div>
+                        `;
+                    }
+                }
+
+                // 清理分类名称，只保留中文
+                function cleanCategoryName(cat) {
+                    if (cat === 'all' || cat === '全部案例') return 'all';
+                    
+                    // 如果包含中文字符，提取中文部分（处理 "英文-中文" 格式）
+                    const chineseMatch = cat.match(/[\u4e00-\u9fa5]+/g);
+                    if (chineseMatch) {
+                        return chineseMatch.join('');
+                    }
+                    
+                    // 如果是纯英文分类名，映射到中文
+                    const categoryMap = {
+                        'e-commerce': '电商案例',
+                        'portrait': '人像与摄影案例',
+                        'ui-social-media': 'UI与社交媒体模型案例',
+                        'poster-illustration': '海报与插画案例',
+                        'advertising': '广告创意案例',
+                        'character-design': '角色设计案例',
+                        'ecommerce': '电商案例',
+                        'portrait-photography': '人像与摄影案例',
+                        'ui-social': 'UI与社交媒体模型案例',
+                        'poster': '海报与插画案例',
+                        'advertising-creative': '广告创意案例',
+                        'character': '角色设计案例'
+                    };
+                    return categoryMap[cat.toLowerCase()] || cat;
+                }
+
+                // 渲染分类
+                function renderCategories() {
+                    // 清理分类名称
+                    allData.forEach(item => {
+                        item.category = cleanCategoryName(item.category);
+                    });
+
+                    const categories = ['all', ...new Set(allData.map(item => item.category))];
+                    const categoryCounts = {};
+                    
+                    allData.forEach(item => {
+                        categoryCounts[item.category] = (categoryCounts[item.category] || 0) + 1;
+                    });
+
+                    const categoryIcons = {
+                        'all': '📊',
+                        '电商案例': '🛒',
+                        '人像与摄影案例': '📸',
+                        'UI与社交媒体模型案例': '💻',
+                        '海报与插画案例': '🎨',
+                        '广告创意案例': '📢',
+                        '角色设计案例': '🎭'
+                    };
+
+                    categoriesEl.innerHTML = categories.map(cat => {
+                        const isActive = cat === currentCategory;
+                        const label = cat === 'all' ? '全部案例' : cat;
+                        const count = cat === 'all' ? allData.length : (categoryCounts[cat] || 0);
+                        const icon = categoryIcons[cat] || '📁';
+
+                        return `
+                            <div class="category-item ${isActive ? 'active' : ''}" data-category="${cat}">
+                                <span class="category-icon">${icon}</span>
+                                <span>${label}</span>
+                                <span class="category-count">${count}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    // 添加点击事件
+                    categoriesEl.querySelectorAll('.category-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            currentCategory = item.dataset.category;
+                            filterData();
+                            renderCategories();
+                        });
+                    });
+                }
+
+                // 过滤数据
+                function filterData() {
+                    const searchTerm = searchInputEl.value.toLowerCase().trim();
+
+                    filteredData = allData.filter(item => {
+                        const matchCategory = currentCategory === 'all' || item.category === currentCategory;
+                        const matchSearch = !searchTerm || 
+                            item.title.toLowerCase().includes(searchTerm) ||
+                            item.prompt.toLowerCase().includes(searchTerm) ||
+                            item.category.toLowerCase().includes(searchTerm) ||
+                            item.case_id.toLowerCase().includes(searchTerm);
+
+                        return matchCategory && matchSearch;
+                    });
+
+                    renderImages();
+                    updateStats();
+                }
+
+                // 渲染图片
+                function renderImages() {
+                    if (filteredData.length === 0) {
+                        imageGridEl.innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">🔍</div>
+                                <div class="empty-state-text">没有找到匹配的案例</div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    imageGridEl.innerHTML = filteredData.map(item => {
+                        const imageUrl = item.cdn_image || (item.cdn_images && item.cdn_images[0]) || '';
+                        
+                        return `
+                            <div class="image-card" data-id="${item.id}">
+                                <div class="image-wrapper">
+                                    <img src="${imageUrl}" alt="${item.title}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖼️</text></svg>'">
+                                </div>
+                                <div class="image-info">
+                                    <div class="image-title">${item.title}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    // 添加点击事件
+                    imageGridEl.querySelectorAll('.image-card').forEach(card => {
+                        card.addEventListener('click', () => {
+                            const item = allData.find(d => d.id == card.dataset.id);
+                            if (item) openModal(item);
+                        });
+                    });
+                }
+
+                // 更新统计
+                function updateStats() {
+                    const total = allData.length;
+                    const showing = filteredData.length;
+                    
+                    if (showing === total) {
+                        statsEl.textContent = `共 ${total} 个案例`;
+                    } else {
+                        statsEl.textContent = `显示 ${showing} / ${total} 个案例`;
+                    }
+                }
+
+                // 打开模态框
+                function openModal(item) {
+                    const imageUrl = item.cdn_image || (item.cdn_images && item.cdn_images[0]) || '';
+                    
+                    modalTitleEl.textContent = item.title;
+                    modalImageEl.src = imageUrl;
+                    modalPromptEl.textContent = item.prompt;
+                    
+                    modalEl.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+
+                    // 复制按钮
+                    copyBtnEl.onclick = () => copyToClipboard(item.prompt);
+                }
+
+                // 关闭模态框
+                function closeModal() {
+                    modalEl.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                    copyBtnEl.classList.remove('copied');
+                    copyBtnEl.innerHTML = '<span>📋</span><span>复制</span>';
+                }
+
+                // 复制到剪贴板
+                async function copyToClipboard(text) {
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        copyBtnEl.classList.add('copied');
+                        copyBtnEl.innerHTML = '<span>✅</span><span>已复制</span>';
+                        
+                        setTimeout(() => {
+                            copyBtnEl.classList.remove('copied');
+                            copyBtnEl.innerHTML = '<span>📋</span><span>复制</span>';
+                        }, 2000);
+                    } catch (err) {
+                        console.error('复制失败:', err);
+                        alert('复制失败，请手动复制');
+                    }
+                }
+
+                // 事件监听
+                let searchTimeout;
+                searchInputEl.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => filterData(), 300);
+                });
+
+                modalCloseEl.addEventListener('click', closeModal);
+
+                modalEl.addEventListener('click', (e) => {
+                    if (e.target === modalEl) closeModal();
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') closeModal();
+                });
+
+                // 导出函数到全局作用域（供 HTML onclick 使用）
+                window.loadData = loadData;
+                window.openModal = openModal;
+                window.closeModal = closeModal;
+
+                // 初始化应用
+                console.log('初始化应用...');
+                loadData();
+            }  // 关闭 initializeApp() 函数
+        });  // 关闭 DOMContentLoaded 监听器
+    </script>
+</body>
+</html>
