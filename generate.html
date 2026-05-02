@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 生图 - GPT Image 2.0</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/generate.css">
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+    <!-- 错误提示 -->
+    <div class="error-toast" id="errorToast"></div>
+
+    <!-- 顶部导航 -->
+    <nav class="top-nav">
+        <div class="nav-left">
+            <a href="index.html" class="back-link">← 返回首页</a>
+        </div>
+        <div class="nav-right">
+            <div class="quota-info">
+                <span>剩余额度：<strong id="quotaCount">--</strong> 次</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 左侧输入面板 -->
+        <div class="input-panel">
+            <!-- 模型选择 -->
+            <div class="form-group">
+                <label class="form-label">模型</label>
+                <input type="text" class="form-input" value="gpt-image-2" readonly>
+            </div>
+
+            <!-- 提示词 -->
+            <div class="form-group">
+                <label class="form-label">提示词</label>
+                <textarea 
+                    class="form-textarea" 
+                    id="promptInput"
+                    placeholder="A beautiful sunset over mountains..."
+                ></textarea>
+            </div>
+
+            <!-- 分辨率和宽高比 -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">分辨率 <span class="help-icon" title="选择输出图片的分辨率">?</span></label>
+                    <select class="form-select" id="resolution">
+                        <option value="1k">1k</option>
+                        <option value="2k">2k</option>
+                        <option value="4k">4k</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">宽高比</label>
+                    <select class="form-select" id="aspectRatio">
+                        <option value="auto" selected>自动 (auto)</option>
+                        <option value="1:1">1:1</option>
+                        <option value="3:4">3:4</option>
+                        <option value="4:3">4:3</option>
+                        <option value="9:16">9:16</option>
+                        <option value="16:9">16:9</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 参考图像上传 -->
+            <div class="form-group">
+                <label class="form-label">参考图像</label>
+                <div class="upload-area" id="uploadArea">
+                    <div class="preview-container" id="previewContainer">
+                        <button class="preview-arrow" id="prevBtn">◀</button>
+                        <div class="preview-image-wrapper">
+                            <img class="preview-image" id="previewImage">
+                            <button class="preview-delete" id="deleteBtn">✕</button>
+                        </div>
+                        <button class="preview-arrow" id="nextBtn">▶</button>
+                    </div>
+                    <div class="upload-placeholder" id="uploadPlaceholder">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-text">上传参考图</div>
+                        <div class="upload-hint">JPEG, PNG or WebP (max 10MB each, up to 16 images)</div>
+                    </div>
+                    <div class="preview-counter" id="previewCounter"></div>
+                </div>
+                <input type="file" class="upload-input" id="uploadInput" accept="image/jpeg,image/png,image/webp" multiple>
+            </div>
+
+            <!-- 运行按钮 -->
+            <button class="run-button" id="runButton">
+                <span>▶ run</span>
+                <span class="cost">⚡ 0.006</span>
+            </button>
+        </div>
+
+        <!-- 右侧输出面板 -->
+        <div class="output-panel">
+            <div class="output-header">
+                <span class="output-title">Output</span>
+                <div class="output-header-buttons" id="outputHeaderButtons">
+                    <button type="button" class="overlay-btn" id="downloadBtn" disabled>下载</button>
+                    <button type="button" class="overlay-btn" id="viewOriginalBtn" disabled>🔍 查看原图</button>
+                </div>
+            </div>
+
+            <div class="output-content">
+                <!-- 输出占位符 -->
+                <div class="output-placeholder">
+                    <div class="placeholder-icon">🖼️</div>
+                    <div class="placeholder-text">生成结果将在这里显示</div>
+                    <div class="placeholder-hint">输入提示词并点击 run 按钮开始生成</div>
+                </div>
+
+                <!-- 生成结果 -->
+                <div class="result-container">
+                    <div class="result-image-wrapper">
+                        <img src="" alt="生成结果" class="result-image" id="resultImage">
+                        <!-- 加载遮罩：旋转 + 进度条，避免误以为页面卡住 -->
+                        <div class="loading-overlay">
+                            <div class="loading-overlay-inner">
+                                <div class="loading-spinner" aria-hidden="true"></div>
+                                <div class="loading-progress-wrap">
+                                    <div class="loading-progress-track" id="loadingProgressTrack">
+                                        <div class="loading-progress-fill" id="loadingProgressFill"></div>
+                                    </div>
+                                    <span class="loading-progress-value" id="loadingProgressValue"></span>
+                                </div>
+                                <div class="loading-text">正在生成图片...</div>
+                                <div class="loading-hint">任务已排队，请稍候</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script type="module" src="js/generate.js"></script>
+</body>
+</html>
