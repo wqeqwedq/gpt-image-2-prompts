@@ -1,0 +1,13 @@
+# Supabase 本地/CLI 配置：https://supabase.com/docs/guides/cli/config
+project_id = "vqubaohredxnfsbgstur"
+
+[api]
+enabled = true
+
+# 前端使用 anon JWT 调用 create-image
+[functions.create-image]
+verify_jwt = true
+
+# 外部 cron 仅带 x-cron-secret，无 JWT
+[functions.poll-image-tasks]
+verify_jwt = false
