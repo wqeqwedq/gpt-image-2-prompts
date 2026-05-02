@@ -1,0 +1,8 @@
+# 本地/工具（不推送到公开仓库时保留忽略）
+.claude/
+creat
+rapid-handler
+图像生成文档
+
+# 若不想把 Supabase 代码放在本仓库，取消下一行注释；需要部署 Edge 时请不要忽略
+supabase/
