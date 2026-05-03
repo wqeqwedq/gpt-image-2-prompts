@@ -7,7 +7,9 @@ class IndexPage {
         this.images = [];
         this.filteredImages = [];
         this.sbClient = null;
-        
+        this._invitationEventsBound = false;
+        this._mainEventsBound = false;
+
         // Supabase 配置（从 index1.html 获取）
         this.SUPABASE_URL = 'https://vqubaohredxnfsbgstur.supabase.co';
         this.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdWJhb2hyZWR4bmZzYmdzdHVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczOTIwMTQsImV4cCI6MjA5Mjk2ODAxNH0.RZf20V3O6-e-EmHXTdKByMQOS5pKI8jS4MlDTg7fHt0';
@@ -33,8 +35,13 @@ class IndexPage {
             return;
         }
         
-        this.bindEvents();
-        this.loadImages();
+        if (!this._mainEventsBound) {
+            this.bindEvents();
+            this._mainEventsBound = true;
+        }
+        if (this.images.length === 0) {
+            this.loadImages();
+        }
     }
 
     bindEvents() {
@@ -70,9 +77,15 @@ class IndexPage {
         if (aiBtn) {
             aiBtn.addEventListener('click', () => this.gotoGeneratePage());
         }
+
+        const changeInviteBtn = document.getElementById('changeInviteBtn');
+        if (changeInviteBtn) {
+            changeInviteBtn.addEventListener('click', () => this.showInvitationOverlayForReentry());
+        }
     }
 
     checkInvitation() {
+        this.ensureInvitationEventsBound();
         const code = localStorage.getItem('verifiedInvitationCode');
         const overlay = document.getElementById('invitationOverlay');
         const mainContainer = document.querySelector('.container');
@@ -85,16 +98,16 @@ class IndexPage {
             setTimeout(() => {
                 this.initializeAppAfterVerification();
             }, 100);
-        } else {
-            // 绑定邀请码验证事件
-            this.bindInvitationEvents();
         }
     }
 
-    bindInvitationEvents() {
+    /** 含「本地已有邀请码直进首页」场景，保证遮罩上的验证按钮始终可用且只绑定一次 */
+    ensureInvitationEventsBound() {
+        if (this._invitationEventsBound) return;
+        this._invitationEventsBound = true;
         const invitationBtn = document.getElementById('invitationBtn');
         const invitationInput = document.getElementById('invitationInput');
-        
+
         if (invitationBtn) {
             invitationBtn.addEventListener('click', () => this.verifyInvitation());
         }
@@ -106,6 +119,41 @@ class IndexPage {
                 }
             });
         }
+    }
+
+    /** 不清除 localStorage；二次确认后显示邀请码层并预填当前码 */
+    showInvitationOverlayForReentry() {
+        const msg =
+            '返回邀请码界面后，您可以查看或修改邀请码（不会清除已保存的邀请码），并将关闭当前弹窗与清空搜索。是否继续？';
+        if (!window.confirm(msg)) return;
+
+        this.closeModal();
+        this.closeZoom();
+
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        this.filterImages();
+
+        const input = document.getElementById('invitationInput');
+        const errorEl = document.getElementById('invitationError');
+        const btn = document.getElementById('invitationBtn');
+        const overlay = document.getElementById('invitationOverlay');
+        const mainContainer = document.querySelector('.container');
+
+        const saved = localStorage.getItem('verifiedInvitationCode') || '';
+        if (input) {
+            input.value = saved;
+            input.disabled = false;
+        }
+        if (errorEl) errorEl.textContent = '';
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '验证邀请码';
+        }
+        if (overlay) overlay.classList.remove('hidden');
+        if (mainContainer) mainContainer.style.display = 'none';
     }
 
     async verifyInvitation() {

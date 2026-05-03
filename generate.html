@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 生图 - GPT Image 2.0</title>
+    <!-- title 在 ?mode=gif 时由 JS 改为「GIF 九宫格」 -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/generate.css">
@@ -18,6 +19,8 @@
     <nav class="top-nav">
         <div class="nav-left">
             <a href="index.html" class="back-link">← 返回首页</a>
+            <a href="#" class="nav-mode-link" id="navLinkGifMode">GIF 九宫格</a>
+            <a href="#" class="nav-mode-link" id="navLinkStaticMode">静图生成</a>
         </div>
         <div class="nav-right">
             <div class="quota-info">
@@ -26,6 +29,7 @@
         </div>
     </nav>
 
+    <div class="page-stack">
     <!-- 主容器 -->
     <div class="main-container">
         <!-- 左侧输入面板 -->
@@ -100,42 +104,92 @@
         <!-- 右侧输出面板 -->
         <div class="output-panel">
             <div class="output-header">
-                <span class="output-title">Output</span>
-                <div class="output-header-buttons" id="outputHeaderButtons">
+                <div class="output-header-top">
+                    <span class="output-title" id="outputPageTitle">Output</span>
+                    <div class="output-header-buttons" id="outputHeaderButtons">
                     <button type="button" class="overlay-btn" id="downloadBtn" disabled>下载</button>
                     <button type="button" class="overlay-btn" id="viewOriginalBtn" disabled>🔍 查看原图</button>
+                    </div>
                 </div>
+                <div class="output-status-banner" id="outputStatusBanner" hidden></div>
             </div>
 
             <div class="output-content">
-                <!-- 输出占位符 -->
-                <div class="output-placeholder">
-                    <div class="placeholder-icon">🖼️</div>
-                    <div class="placeholder-text">生成结果将在这里显示</div>
-                    <div class="placeholder-hint">输入提示词并点击 run 按钮开始生成</div>
-                </div>
+                <div class="output-content-inner">
+                    <!-- 输出占位符 -->
+                    <div class="output-placeholder">
+                        <div class="placeholder-icon">🖼️</div>
+                        <div class="placeholder-text">生成结果将在这里显示</div>
+                        <div class="placeholder-hint">输入提示词并点击 run 按钮开始生成</div>
+                    </div>
 
-                <!-- 生成结果 -->
-                <div class="result-container">
-                    <div class="result-image-wrapper">
-                        <img src="" alt="生成结果" class="result-image" id="resultImage">
-                        <!-- 加载遮罩：旋转 + 进度条，避免误以为页面卡住 -->
-                        <div class="loading-overlay">
-                            <div class="loading-overlay-inner">
-                                <div class="loading-spinner" aria-hidden="true"></div>
-                                <div class="loading-progress-wrap">
-                                    <div class="loading-progress-track" id="loadingProgressTrack">
-                                        <div class="loading-progress-fill" id="loadingProgressFill"></div>
+                    <!-- 生成结果 -->
+                    <div class="result-container">
+                        <div class="result-image-wrapper">
+                            <div class="result-image-stack">
+                            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" class="result-image result-image--placeholder" id="resultImage" decoding="async">
+                            <canvas id="nineGridPreviewCanvas" class="nine-grid-preview-canvas" hidden width="64" height="64" aria-hidden="true"></canvas>
+                            </div>
+                            <!-- 加载遮罩：旋转 + 进度条，避免误以为页面卡住 -->
+                            <div class="loading-overlay">
+                                <div class="loading-overlay-inner">
+                                    <div class="loading-spinner" aria-hidden="true"></div>
+                                    <div class="loading-progress-wrap">
+                                        <div class="loading-progress-track" id="loadingProgressTrack">
+                                            <div class="loading-progress-fill" id="loadingProgressFill"></div>
+                                        </div>
+                                        <span class="loading-progress-value" id="loadingProgressValue"></span>
                                     </div>
-                                    <span class="loading-progress-value" id="loadingProgressValue"></span>
+                                    <div class="loading-text">正在生成图片...</div>
+                                    <div class="loading-hint">任务已排队，请稍候</div>
                                 </div>
-                                <div class="loading-text">正在生成图片...</div>
-                                <div class="loading-hint">任务已排队，请稍候</div>
+                            </div>
+                            <!-- 有进行中任务时：叠在预览黑区内、水平垂直居中（与 #resultImage 同一 .result-image-wrapper） -->
+                            <div class="output-tasks-jokes" id="outputTasksJokes" hidden>
+                                <div class="tasks-jokes-inner">
+                                    <p class="tasks-jokes-intro" id="tasksJokesIntro">图片正在生成中，在这之前请你先回答我几个问题</p>
+                                    <button type="button" class="joke-question-btn" id="jokeQuestionBtn" aria-expanded="false" aria-controls="jokeAnswerText"></button>
+                                    <p class="joke-answer-text" id="jokeAnswerText" hidden role="region" aria-live="polite"></p>
+                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- GIF 模式：帧间隔与导出，放在大图预览区下方 -->
+                    <div class="gif-mode-toolbar gif-mode-toolbar--under-preview" id="gifModeToolbar" hidden>
+                        <div class="gif-mode-toolbar-row">
+                            <label class="gif-delay-label" for="gifFrameDelayInput">每帧间隔 (ms)</label>
+                            <input type="number" class="gif-delay-input" id="gifFrameDelayInput" min="40" max="2000" value="150" step="10">
+                        </div>
+                        <button type="button" class="overlay-btn gif-export-btn" id="exportNineGridGifBtn" disabled>仅导出九宫格 GIF</button>
+                        <p class="gif-mode-hint">历史列表暂不支持逐条导出 GIF。GIF 与九宫格切片不会写入底部「已完成」区。</p>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <section class="gallery-strip" aria-label="生成记录">
+        <div class="gallery-strip-head">
+            <h2 class="gallery-strip-title">最近生成</h2>
+            <span class="gallery-strip-hint">进行中任务与最近 30 张完成图（点击图片可放大）</span>
+        </div>
+        <div class="gallery-section">
+            <div class="gallery-section-label">进行中</div>
+            <div class="gallery-active-row" id="galleryActiveRow"></div>
+        </div>
+        <div class="gallery-section">
+            <div class="gallery-section-label">已完成</div>
+            <div class="gallery-completed-grid" id="galleryCompletedGrid"></div>
+        </div>
+    </section>
+    </div>
+
+    <div class="image-lightbox" id="imageLightbox" hidden aria-hidden="true">
+        <div class="image-lightbox-backdrop" id="imageLightboxBackdrop"></div>
+        <div class="image-lightbox-inner">
+            <button type="button" class="image-lightbox-close" id="imageLightboxClose" aria-label="关闭">×</button>
+            <img class="image-lightbox-img" id="imageLightboxImg" src="" alt="预览">
         </div>
     </div>
 
